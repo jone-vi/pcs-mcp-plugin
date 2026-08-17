@@ -1,0 +1,20 @@
+{
+  "name": "telaris",
+  "description": "MCP plugins for Telaris PCS — connect Claude to tasks, orders, customers, products, reports and the Telaris documentation on your own instance.",
+  "owner": {
+    "name": "Telaris",
+    "email": "jone@telaris.no"
+  },
+  "plugins": [
+    {
+      "name": "telaris-pcs",
+      "source": "./plugins/telaris-pcs",
+      "description": "Telaris PCS MCP servers: tasks, kanban, tags, orders, customers, products, reports and the Telaris documentation."
+    },
+    {
+      "name": "telaris-pcs-admin",
+      "source": "./plugins/telaris-pcs-admin",
+      "description": "Telaris PCS system administration MCP tools. Requires system-administrator access."
+    }
+  ]
+}

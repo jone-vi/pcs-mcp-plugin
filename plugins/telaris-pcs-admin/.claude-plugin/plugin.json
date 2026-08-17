@@ -1,0 +1,25 @@
+{
+  "name": "telaris-pcs-admin",
+  "description": "Telaris PCS system administration MCP tools. Requires system-administrator access.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Telaris",
+    "email": "jone@telaris.no"
+  },
+  "userConfig": {
+    "host": {
+      "type": "string",
+      "title": "PCS hostname",
+      "description": "Hostname of your Telaris PCS instance, without https:// — for example pcs.telaris.no",
+      "required": true,
+      "default": "pcs.telaris.no"
+    },
+    "token": {
+      "type": "string",
+      "title": "MCP auth key",
+      "description": "Your personal auth key from /mcp on your PCS instance. Treat it like a password.",
+      "required": true,
+      "sensitive": true
+    }
+  }
+}

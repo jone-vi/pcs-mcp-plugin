@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "telaris-erp": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp/action/${user_config.token}/erp"
+    },
+    "telaris-docs": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp/action/${user_config.token}/docs"
+    }
+  }
+}

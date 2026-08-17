@@ -1,0 +1,26 @@
+{
+  "name": "telaris-pcs",
+  "description": "Telaris PCS MCP servers: tasks, kanban, tags, orders, customers, products, reports and the Telaris documentation.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Telaris",
+    "email": "jone@telaris.no"
+  },
+  "homepage": "https://wiki.telaris.no/index.php/Systeminnstillinger",
+  "userConfig": {
+    "host": {
+      "type": "string",
+      "title": "PCS hostname",
+      "description": "Hostname of your Telaris PCS instance, without https:// — for example pcs.telaris.no",
+      "required": true,
+      "default": "pcs.telaris.no"
+    },
+    "token": {
+      "type": "string",
+      "title": "MCP auth key",
+      "description": "Your personal auth key. Log in to PCS, open /mcp, and copy the key from the install command shown there. Treat it like a password.",
+      "required": true,
+      "sensitive": true
+    }
+  }
+}
