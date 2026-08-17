@@ -60,17 +60,27 @@ If the install summary says `Run /reload-plugins to activate.`, run it.
 
 ## Skills
 
-Two skills ship with `telaris-pcs`. They exist because a tool description is paid on every
+Five skills ship with `telaris-pcs`. They exist because a tool description is paid on every
 request while a skill body is loaded only when it's relevant — so the long-form "how this
-subsystem actually behaves" material belongs in a skill, not in twenty tool descriptions.
+subsystem actually behaves" material belongs in a skill, not in twenty tool descriptions. They
+are written for end users, and they encode the engines' real quirks rather than describing them
+optimistically.
 
 | Skill | Covers |
 |---|---|
-| `telaris-report-authoring` | The report engine: the one-result-set rule, `${PARAM}` placeholders, `@`-annotation column formatting, output targets, report templates |
-| `telaris-search` | The query engine: how filters combine, the `task_search` defaults that silently narrow results, regex and user filters, sorting, paging, `countOnly`/`countBy`, custom fields |
+| `custom-reports` | The report engine: the one-query/many-`SET` rule, `${PARAM}` and `%USERID%` variables, `@`-annotation column formatting, output targets, and the draft → create → run → refine loop. Five worked SQL examples |
+| `pdf-templates` | PDF layouts through Html2Pdf: table-only layout, the `page`/`page_header`/`page_footer` structure, what CSS works and the long list that doesn't, and the report-template variable scope |
+| `dashboard-widgets` | Dashboard cards: the query → template → chart pipeline, widget-scoped CSS/JS, fail-soft rendering |
+| `phptal` | The shared template syntax — `${...}`, `tal:`, `metal:`, `i18n:` — and the PCS filters. The other template skills defer to it |
+| `record-search` | The MCP query engine: how filters combine, the `task_search` defaults that silently narrow results, regex and `"me"` filters, sorting, paging, `countOnly`/`countBy`, and tag-type custom fields |
+
+They cross-reference each other by name — a report PDF pulls in `custom-reports` for the query
+and `pdf-templates` for the layout — so installing all of them is better than picking one. See
+[`plugins/telaris-pcs/skills/README.md`](plugins/telaris-pcs/skills/README.md) for how they fit
+together and where each fact came from.
 
 In Claude Code they load automatically with the plugin. Claude picks them up when relevant, or
-you can invoke one directly as `/telaris-pcs:telaris-search`.
+you can invoke one directly as `/telaris-pcs:custom-reports`.
 
 ### Claude Desktop and claude.ai
 
@@ -78,12 +88,15 @@ Neither reads Claude Code plugins, but both take uploaded skills — and the ski
 there because they describe the system, not the client. Build the archives:
 
 ```shell
-./bin/build-skills.sh          # -> dist/telaris-search.zip, dist/telaris-report-authoring.zip
+./bin/build-skills.sh          # -> dist/custom-reports.zip, dist/pdf-templates.zip, ...
 ```
 
-Then **Settings → Capabilities → Skills → Upload skill** and pick a ZIP. The script enforces the
-uploader's two limits that Claude Code does not (name ≤ 64 characters, description ≤ 200), so a
-skill that builds here will upload.
+Then **Settings → Capabilities → Skills → Upload skill** and pick a ZIP. Each archive has the
+skill's folder as its root, with its `references/` and `examples/` inside, which is the layout the
+uploader wants. The script checks that the folder name matches the frontmatter `name` — the
+uploader rejects a mismatch — and reports each description's length against the documented
+200-character limit, which every skill here exceeds; if an upload is ever refused for that
+reason, the descriptions are where to look first.
 
 Pair them with the MCP servers as **custom connectors** — Settings → Connectors → Add custom
 connector — one per domain you want, using the same URL shape the plugin uses:

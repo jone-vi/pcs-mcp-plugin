@@ -1,9 +1,26 @@
 ---
-name: telaris-search
-description: Search Telaris PCS records with the *_search tools — how filters combine, the defaults that silently narrow results, regex and user filters, sorting, paging, and counting without fetching rows.
+name: record-search
+description: >-
+  Find records in Telaris PCS with the *_search tools — tasks, tags, orders,
+  customers, products and kanban boards. Covers how filters combine (all optional,
+  all ANDed), the task_search defaults that silently narrow every result set,
+  regex and "me" user filters, date windows, multi-level sortBy, paging and
+  page.total, answering "how many" with countOnly/countBy instead of fetching
+  rows, and returning or filtering tag-type custom fields. Use this skill whenever
+  the user asks to find, list, count or filter PCS records, or when a search comes
+  back empty or with a count that does not match what they expect. Pair with
+  custom-reports when the answer wants a saved report rather than a lookup.
+metadata:
+  author: jone@telaris.no
+  version: "1.0"
 ---
 
 # Searching Telaris
+
+This is the **lookup** path: ask a question, get rows back, no artifact. If the
+user wants something saved, scheduled, exported to Excel or wired to a button,
+that is a report — see the **custom-reports** skill. A good rule: one-off question
+→ search tools; something they will run again → a report.
 
 Every `*_search` tool is the same query engine over a different entity, so what
 you learn on one applies to all of them:
@@ -104,7 +121,7 @@ a workload-overdue breakdown in a single call.
 
 `tag_search` and `customer_search` can return and filter on tag-type custom
 fields. They are **not returned unless asked for**. See
-[reference/custom-fields.md](reference/custom-fields.md) for the selection syntax
+[references/custom-fields.md](references/custom-fields.md) for the selection syntax
 and the filter operators.
 
 ## Habits that pay off

@@ -1,0 +1,83 @@
+<!--
+  "Hours per employee" dashboard widget template.
+  Pairs with hours-per-employee.sql (columns: Employee, TotalHours).
+  Browser-rendered: modern CSS + JS are fine here (NOT Html2Pdf).
+  Patterns shown:
+    - unique root class (.emp-hours-2581) so styles don't leak to other widgets
+    - ${id}-suffixed ids so the widget can appear more than once on a page
+    - query rows -> hidden <li data-*> -> JS reads them (no inline PHP)
+    - KPI total + bar chart, with empty-state and missing-Highcharts handling
+    - i18n on static text only
+-->
+<style>
+  .emp-hours-2581 { border:1px solid #d6e8de; border-radius:14px;
+                    background:linear-gradient(145deg,#f3faf6 0%,#fff 70%);
+                    padding:14px; font-family:"Segoe UI",sans-serif; color:#12332a; }
+  .emp-hours-2581 .head  { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; }
+  .emp-hours-2581 .title { margin:0; font-size:18px; line-height:1.2; }
+  .emp-hours-2581 .sub   { margin:4px 0 0; color:#5b756d; font-size:12px; }
+  .emp-hours-2581 .total { background:#fff; border:1px solid #d6e8de; border-radius:10px; padding:8px 10px; min-width:150px; text-align:right; }
+  .emp-hours-2581 .total-value { margin:2px 0 0; font-size:24px; font-weight:700; color:#0a7a4b; }
+  .emp-hours-2581 .chart { height:220px; width:100%; margin-top:8px; }
+  .emp-hours-2581 .note  { margin-top:10px; font-size:12px; color:#5b756d; }
+</style>
+
+<div class="emp-hours-2581" id="emp-hours-${id}">
+  <div class="head">
+    <div>
+      <h2 class="title" i18n:translate="" i18n:default="nb_NO Timer per ansatt|sv_SE Timmar per anställd">Hours per employee</h2>
+      <p class="sub" i18n:translate="" i18n:default="nb_NO Inneværende måned|sv_SE Innevarande månad">This month</p>
+    </div>
+    <div class="total">
+      <div i18n:translate="" i18n:default="nb_NO Totalt|sv_SE Totalt">Total</div>
+      <div class="total-value" id="emp-hours-total-${id}">0,0 t</div>
+    </div>
+  </div>
+  <div class="chart" id="emp-hours-chart-${id}"></div>
+  <div class="note" id="emp-hours-note-${id}"></div>
+</div>
+
+<ul id="emp-hours-data-${id}" style="display:none">
+  <tal:block tal:repeat="row query/records">
+    <li tal:attributes="data-name row/Employee; data-hours row/TotalHours"></li>
+  </tal:block>
+</ul>
+
+<script type="text/javascript">
+//<![CDATA[
+(function () {
+  var dataRoot = document.getElementById('emp-hours-data-${id}');
+  var totalEl  = document.getElementById('emp-hours-total-${id}');
+  var noteEl   = document.getElementById('emp-hours-note-${id}');
+  var items = dataRoot ? dataRoot.querySelectorAll('li') : [];
+
+  var rows = [];
+  for (var i = 0; i < items.length; i++) {
+    var name  = items[i].getAttribute('data-name') || '';
+    var hours = parseFloat(items[i].getAttribute('data-hours') || '0');
+    if (name && !isNaN(hours) && hours > 0) rows.push({ name: name, hours: hours });
+  }
+  rows.sort(function (a, b) { return b.hours - a.hours; });
+
+  var total = 0;
+  for (var j = 0; j < rows.length; j++) total += rows[j].hours;
+  totalEl.textContent = total.toFixed(1).replace('.', ',') + ' t';
+
+  if (!rows.length) { noteEl.textContent = 'Ingen timer registrert denne måneden.'; return; }
+
+  var top = rows.slice(0, 15);
+  noteEl.textContent = 'Viser topp ' + top.length + ' ansatte';
+
+  if (!window.Highcharts) { noteEl.textContent += ' (Highcharts mangler)'; return; }
+
+  Highcharts.chart('emp-hours-chart-${id}', {
+    chart: { type: 'bar', backgroundColor: 'transparent' },
+    title: { text: null }, credits: { enabled: false }, legend: { enabled: false },
+    xAxis: { categories: top.map(function (r) { return r.name; }) },
+    yAxis: { min: 0, title: { text: 'Timer' } },
+    tooltip: { pointFormat: '<b>{point.y:.2f} t</b>' },
+    series: [{ name: 'Timer', data: top.map(function (r) { return r.hours; }) }]
+  });
+})();
+//]]>
+</script>

@@ -1,0 +1,115 @@
+<!--
+  Minimal, correct custom-report PDF template (the `template` / `templateraw`
+  targets). Modelled on a template that runs in production.
+
+  WHAT IS IN SCOPE HERE (and nothing else):
+    report        the LIST of result rows; each row keyed by SQL column alias
+    metadata      the parsed @-annotations
+    title         the report's name
+    created       render timestamp
+    hostname      request hostname (use it to build image URLs)
+    request       request/date/*, request/systemroot, request/params/get/*, ...
+    i18n          i18n/code, i18n/name, i18n/short
+    id, identifier, revision, lastrevision, lastrun, version, modules
+
+  THERE IS NO company, customer, user, today, rows OR total. Those exist in
+  invoice/order DOCUMENT templates, not here. Anything about a company or a
+  customer must be selected as a column in the report's query. Copying an
+  invoice template's variables is the #1 cause of "Unable to find variable".
+
+  Structure:
+  - a hoisting preamble that promotes row values to globals, so page_header
+    (which renders outside the repeat and cannot see `row`) can use them
+  - one <page> with a repeating header and footer
+  - table-based layout (the only reliable layout)
+  - a data table with a <thead> that repeats across pages, and a totals block
+-->
+
+<!--
+  Hoisting preamble. page_header runs outside the tal:repeat below, so anything
+  it needs must become a global first. Take it from the first row.
+
+  NOTE the placement of tal:define: PHPTAL evaluates define (priority 4) BEFORE
+  repeat (priority 8), so a define ON the repeating element cannot see the loop
+  variable. It must live on a CHILD element, as it does here.
+-->
+<tal:block tal:repeat="row report">
+  <tal:block tal:condition="repeat/row/start">
+    <tal:block tal:define="global periodfrom row/periodfrom" />
+    <tal:block tal:define="global periodto row/periodto" />
+    <tal:block tal:define="global grandtotal row/grandtotal" />
+  </tal:block>
+</tal:block>
+
+<page backtop="35mm" backbottom="20mm" backleft="10mm" backright="10mm">
+
+  <page_header>
+    <div style="width:710px">
+      <table>
+        <tr valign="top">
+          <td style="width:475px;text-align:left">
+            <!-- a report template has no company-logo variable; build the URL
+                 from ${hostname}, or select the path as a query column -->
+            <img src="http://${hostname}/images/company/logo/reportlogo/logo.jpg" height="45" alt="" />
+          </td>
+          <td style="width:235px;text-align:right">
+            <h1 style="margin-top:0">${title}</h1>
+            <small>${request/date/fulldate}</small>
+            <tal:block tal:condition="periodfrom">
+              <br /><small>${periodfrom} &ndash; ${periodto}</small>
+            </tal:block>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </page_header>
+
+  <page_footer>
+    <table>
+      <tr>
+        <td style="width:355px"><small>${title}</small></td>
+        <td style="width:355px;text-align:right"><small>Page [[page_cu]]/[[page_nb]]</small></td>
+      </tr>
+    </table>
+  </page_footer>
+
+  <!-- Body -->
+  <div style="width:710px">
+
+    <table style="border-collapse: collapse; width:710px" cellpadding="4">
+      <thead>
+        <tr>
+          <th align="left" style="border-bottom: solid 0.3mm #000000">
+            <small i18n:translate="" i18n:default="nb_NO Kunde|sv_SE Kund">Customer</small></th>
+          <th align="center" style="border-bottom: solid 0.3mm #000000">
+            <small i18n:translate="" i18n:default="nb_NO Dato|sv_SE Datum">Date</small></th>
+          <th align="right" style="border-bottom: solid 0.3mm #000000">
+            <small i18n:translate="" i18n:default="nb_NO Beløp|sv_SE Belopp">Amount</small></th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- `report` is the row list. Each row is keyed by the SQL alias, so
+             these must match the query's AS names exactly (case-sensitive). -->
+        <tr tal:repeat="row report">
+          <td align="left">${wordwrap:row/customer,45}</td>
+          <td align="center">${formatdate:row/date}</td>
+          <td align="right">${formatprice:row/amount}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Totals. Compute them in SQL and select them as a column; there is no
+         `total` variable. This one was hoisted from the first row above. -->
+    <nobreak>
+      <table style="width:710px; margin-top:6px">
+        <tr>
+          <td align="right" style="width:560px"><b
+            i18n:translate="" i18n:default="nb_NO Sum|sv_SE Summa">Total</b></td>
+          <td align="right" style="width:150px"><b>${formatprice:grandtotal}</b></td>
+        </tr>
+      </table>
+    </nobreak>
+
+  </div>
+
+</page>

@@ -1,0 +1,144 @@
+<!--
+  Invoice-style layout, in the shape of the real PCS finance templates.
+
+  SCOPE WARNING: this is a DOCUMENT template. It uses ${company/...},
+  ${customer/...} and `rows`, which the invoice/order rendering code puts in
+  scope. A CUSTOM-REPORT template gets none of them — its row list is `report`,
+  and company/customer values must be selected as query columns. Copy the LAYOUT
+  patterns from here, never the variable names; see minimal-report.html for a
+  report template.
+
+  Demonstrates the patterns that matter:
+    - letterhead (logo left, title right) as a TWO-CELL TABLE, not flexbox
+    - sender/recipient addresses side by side as a TWO-CELL TABLE
+    - a line-item table with <thead> column headers + zebra-free rows
+    - a right-aligned totals block in a <nobreak>
+    - money via ${formatprice:...}, dates via ${formatdate:...}
+  All layout is tables. No flex, no grid, no float. Padding lives on td/div.
+-->
+<page backtop="40mm" backbottom="28mm" backleft="10mm" backright="10mm">
+
+  <style type="text/css">
+    td { font-size: 11pt; }
+    .label { color:#555555; font-size:9pt; }
+    .box   { border: solid 0.3mm #cccccc; }
+  </style>
+
+  <page_header>
+    <div style="width:710px">
+      <table>
+        <tr valign="top">
+          <td style="width:375px;text-align:left">
+            <img src="${reportlogo:companyuuid}" alt="${company/name}" height="50" />
+          </td>
+          <td style="width:335px;text-align:right">
+            <h1 style="margin-top:0"
+                i18n:translate="" i18n:default="nb_NO Faktura|sv_SE Faktura">Invoice</h1>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </page_header>
+
+  <page_footer>
+    <table>
+      <tr>
+        <td style="text-align:center">
+          <small>${company/name} · Org ${company/orgno} · ${company/email} · ${company/phone}</small>
+        </td>
+      </tr>
+    </table>
+  </page_footer>
+
+  <!-- Addresses: sender + recipient as two cells -->
+  <div style="width:710px">
+    <table>
+      <tr valign="top">
+        <td style="width:355px">
+          <div class="label" i18n:translate="" i18n:default="nb_NO Fra|sv_SE Från">From</div>
+          <div><b>${company/name}</b></div>
+          <div>${company/address}</div>
+          <div>${company/zip} ${company/city}</div>
+        </td>
+        <td style="width:355px">
+          <div class="label" i18n:translate="" i18n:default="nb_NO Til|sv_SE Till">To</div>
+          <div><b>${customer/name}</b></div>
+          <div>${customer/address}</div>
+          <div>${customer/zip} ${customer/city}</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Invoice meta: number / date / due date in a compact table -->
+  <div style="width:710px; margin-top:8px">
+    <table cellpadding="3">
+      <tr>
+        <td class="label" i18n:translate="" i18n:default="nb_NO Fakturanr|sv_SE Fakturanr">Invoice no.</td>
+        <td><b>${proposal/invoicenumber}</b></td>
+        <td class="label" i18n:translate="" i18n:default="nb_NO Dato|sv_SE Datum">Date</td>
+        <td>${formatdate:proposal/invoicedate}</td>
+        <td class="label" i18n:translate="" i18n:default="nb_NO Forfall|sv_SE Förfallodag">Due</td>
+        <td>${formatdate:proposal/duedate}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Line items -->
+  <div style="width:710px; margin-top:10px">
+    <table style="border-collapse: collapse; width:710px" cellpadding="4">
+      <thead>
+        <tr>
+          <th align="left"   style="border-bottom: solid 0.3mm #000000"><small
+            i18n:translate="" i18n:default="nb_NO Produkt|sv_SE Produkt">Product</small></th>
+          <th align="left"   style="border-bottom: solid 0.3mm #000000"><small
+            i18n:translate="" i18n:default="nb_NO Tekst|sv_SE Text">Text</small></th>
+          <th align="right"  style="border-bottom: solid 0.3mm #000000"><small
+            i18n:translate="" i18n:default="nb_NO Antall|sv_SE Antal">Qty</small></th>
+          <th align="right"  style="border-bottom: solid 0.3mm #000000"><small
+            i18n:translate="" i18n:default="nb_NO Pris|sv_SE Pris">Price</small></th>
+          <th align="right"  style="border-bottom: solid 0.3mm #000000"><small
+            i18n:translate="" i18n:default="nb_NO Beløp|sv_SE Belopp">Amount</small></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr tal:repeat="row rows" valign="top">
+          <td>${row/productsku}</td>
+          <td>${row/name}</td>
+          <td align="right">${formatdecimal:row/unitcount}</td>
+          <td align="right">${formatprice:row/unitprice}</td>
+          <td align="right">${formatprice:row/netamount}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals block, kept on one page -->
+  <nobreak>
+    <div style="width:710px; margin-top:8px">
+      <table style="width:710px">
+        <tr>
+          <td style="width:510px"></td>
+          <td style="width:200px">
+            <table cellpadding="3" style="width:200px">
+              <tr>
+                <td class="label" i18n:translate="" i18n:default="nb_NO Netto|sv_SE Netto">Net</td>
+                <td align="right">${formatprice:proposal/nettotal}</td>
+              </tr>
+              <tr>
+                <td class="label" i18n:translate="" i18n:default="nb_NO MVA|sv_SE Moms">VAT</td>
+                <td align="right">${formatprice:proposal/vattotal}</td>
+              </tr>
+              <tr>
+                <td style="border-top: solid 0.3mm #000000"><b
+                  i18n:translate="" i18n:default="nb_NO Sum|sv_SE Summa">Total</b></td>
+                <td align="right" style="border-top: solid 0.3mm #000000"><b>${formatprice:totalamount}</b></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </nobreak>
+
+</page>
