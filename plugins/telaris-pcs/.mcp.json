@@ -1,12 +1,32 @@
 {
   "mcpServers": {
-    "telaris-erp": {
+    "telaris-task": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/${user_config.token}/erp"
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/task"
+    },
+    "telaris-tag": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/tag"
+    },
+    "telaris-order": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/order"
+    },
+    "telaris-customer": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/customer"
+    },
+    "telaris-product": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/product"
+    },
+    "telaris-report": {
+      "type": "http",
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/report"
     },
     "telaris-docs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/${user_config.token}/docs"
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/docs"
     }
   }
 }

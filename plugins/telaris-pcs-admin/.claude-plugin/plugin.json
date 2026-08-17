@@ -1,11 +1,15 @@
 {
   "name": "telaris-pcs-admin",
+  "displayName": "Telaris PCS Admin",
   "description": "Telaris PCS system administration MCP tools. Requires system-administrator access.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
   },
+  "homepage": "https://wiki.telaris.no/index.php/Systeminnstillinger",
+  "repository": "https://github.com/jone-vi/pcs-mcp-plugin",
+  "keywords": [ "telaris", "pcs", "mcp", "sysadmin" ],
   "userConfig": {
     "host": {
       "type": "string",

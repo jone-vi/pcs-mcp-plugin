@@ -1,12 +1,15 @@
 {
   "name": "telaris-pcs",
-  "description": "Telaris PCS MCP servers: tasks, kanban, tags, orders, customers, products, reports and the Telaris documentation.",
-  "version": "1.0.0",
+  "displayName": "Telaris PCS",
+  "description": "Telaris PCS MCP servers, one per domain: tasks, tags, orders, customers, products, reports and the Telaris documentation. Ships skills for the report engine and the search query engine.",
+  "version": "2.0.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
   },
   "homepage": "https://wiki.telaris.no/index.php/Systeminnstillinger",
+  "repository": "https://github.com/jone-vi/pcs-mcp-plugin",
+  "keywords": [ "telaris", "pcs", "erp", "mcp" ],
   "userConfig": {
     "host": {
       "type": "string",
