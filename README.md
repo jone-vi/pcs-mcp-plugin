@@ -6,31 +6,52 @@ previously served from `https://<host>/mcp/`.
 This repository is a **plugin marketplace** for Claude Code containing two plugins, and the
 **skills** in it double as uploadable skills for Claude Desktop and claude.ai.
 
-| Plugin | MCP servers | Who it's for |
-|---|---|---|
-| `telaris-pcs` | `task`, `tag`, `order`, `customer`, `product`, `report`, `docs` | Everyone with MCP access |
-| `telaris-pcs-admin` | `admin` | System administrators only |
+| Plugin | MCP server | Tools | Who it's for |
+|---|---|---|---|
+| `telaris-pcs` | `pcs` | tasks, kanban, tags, orders, customers, products, custom reports, the Telaris docs | Everyone with MCP access |
+| `telaris-pcs-admin` | `admin` | `genesis_update` | System administrators only |
 
 They are separate plugins on purpose: every MCP server a plugin declares starts when the plugin
 is enabled, and the `admin` server rejects non-sysadmins. Bundling it with `telaris-pcs` would
-leave most users with one permanently failing server in `/plugin` → Errors.
+leave most users with one permanently failing server in `/plugin` → Errors — and it would give
+every sysadmin the instance-upgrade tool without their ever asking for it.
 
-> **Requires the MCP2 endpoint.** Version 2.x points at `/mcp2/action/…`. On an instance that has
-> not deployed it yet, install `v1.0.0` — the last version that talks to `/mcp/action/…` — or wait
-> for the deployment. `whoami` failing on every server right after install is the symptom.
+> **Requires the MCP2 endpoint.** Version 2.x and 3.x point at `/mcp2/action/…`. On an instance
+> that has not deployed it yet, install `v1.0.0` — the last version that talks to `/mcp/action/…`
+> — or wait for the deployment. `whoami` failing right after install is the symptom.
 
-## One server per domain
+## One server, not seven
 
-MCP1 offered two coarse toolsets, `erp` and `docs`. `erp` alone cost about 15.7k tokens of tool
-schemas on **every** request, whether or not the conversation was about orders.
+**3.0.0 is one server where 2.x was seven.** If you are upgrading, that is the whole change: the
+tools, their names and their behaviour are identical. `/mcp` will show `telaris-pcs` where it
+showed `telaris-task`, `telaris-tag` and five more.
 
-MCP2 splits that by domain, so a client pays only for what it loaded. `task` is the largest at
-~20 kB of `tools/list`; the rest are 5–16 kB. Disable the servers you do not use — `/mcp` in
-Claude Code lists them individually — and the tokens go with them.
+The seven existed to save context. MCP1 offered two coarse toolsets, and `erp` alone cost about
+15.7k tokens of tool schemas on **every** request, whether or not the conversation was about
+orders — so splitting by domain let a client pay only for the domains it loaded.
 
-The old combined surface is still reachable if you want it: `…/mcp2/action/<token>/erp` serves
-every business domain in one server, and an empty segment serves everything your login may use.
-Neither is what the plugin ships.
+That reasoning was correct about the server and wrong about the client. Claude Code **defers tool
+definitions**: only tool names and each server's instructions load at session start, and a tool's
+full description and schema are fetched when Claude reaches for it. Measured against a live
+instance:
+
+| | Tools | Loaded at session start |
+|---|--:|--:|
+| The seven servers of 2.x | 47 | **3 948 b** |
+| `pcs` + `admin` in 3.0.0 | 37 | **2 494 b** |
+
+One server is not merely as cheap as seven, it is **cheaper** — because seven servers meant seven
+copies of the `whoami` and `object_read` names and seven instructions blocks, and collapsing them
+pays each once. Splitting to save context was costing context.
+
+What you get for it: one connection instead of seven, one handshake at startup instead of seven,
+and one sign-in when OAuth arrives instead of seven. What you give up: you can no longer disable
+`order` and keep `task` — the granularity is gone, and so are the `erp` bundle and the
+everything-you-may-use endpoint that 2.x left reachable by hand. Those URLs now answer 400.
+
+If your client does *not* defer tool definitions, it pays the full ~68 kB of `tools/list` on every
+request with nothing narrower to fall back to. Claude Code defers; Claude Desktop and claude.ai
+are unmeasured.
 
 ## Install
 
@@ -60,11 +81,11 @@ If the install summary says `Run /reload-plugins to activate.`, run it.
 
 ## Skills
 
-Five skills ship with `telaris-pcs`. They exist because a tool description is paid on every
-request while a skill body is loaded only when it's relevant — so the long-form "how this
-subsystem actually behaves" material belongs in a skill, not in twenty tool descriptions. They
-are written for end users, and they encode the engines' real quirks rather than describing them
-optimistically.
+Five skills ship with `telaris-pcs`. A skill is chosen from its name and one line, and its body
+loads only when Claude decides it is relevant — so the long-form "how this subsystem actually
+behaves" material belongs in a skill rather than in twenty tool descriptions, where it would be
+read only after the tool is already the candidate. They are written for end users, and they encode
+the engines' real quirks rather than describing them optimistically.
 
 | Skill | Covers |
 |---|---|
@@ -98,12 +119,11 @@ uploader rejects a mismatch — and reports each description's length against th
 200-character limit, which every skill here exceeds; if an upload is ever refused for that
 reason, the descriptions are where to look first.
 
-Pair them with the MCP servers as **custom connectors** — Settings → Connectors → Add custom
-connector — one per domain you want, using the same URL shape the plugin uses:
+Pair them with the MCP server as a **custom connector** — Settings → Connectors → Add custom
+connector — using the same URL the plugin uses:
 
 ```
-https://<host>/mcp2/action/<auth-key>/task
-https://<host>/mcp2/action/<auth-key>/report
+https://<host>/mcp2/action/<auth-key>/pcs
 ```
 
 Because the auth key is a path segment, no OAuth configuration is needed. Treat those URLs as
@@ -117,9 +137,9 @@ endpoint URL:
 ```json
 {
   "mcpServers": {
-    "telaris-task": {
+    "telaris-pcs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/task"
+      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/pcs"
     }
   }
 }
@@ -150,13 +170,13 @@ MCP2 requires a session, so a raw `curl` takes two calls — `initialize` first,
 `Mcp-Session-Id` it returns:
 
 ```shell
-curl -sD- -o/dev/null -X POST "https://$HOST/mcp2/action/$TOKEN/task" \
+curl -sD- -o/dev/null -X POST "https://$HOST/mcp2/action/$TOKEN/pcs" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
         "protocolVersion":"2025-03-26","capabilities":{},
         "clientInfo":{"name":"curl","version":"1"}}}' | grep -i mcp-session-id
 
-curl -s -X POST "https://$HOST/mcp2/action/$TOKEN/task" \
+curl -s -X POST "https://$HOST/mcp2/action/$TOKEN/pcs" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -H "Mcp-Session-Id: $SESSION" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
@@ -172,6 +192,9 @@ reason.
 - **One instance per install.** A plugin can only be installed once, so `host` is a single value.
   Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
+- **No per-domain granularity.** 3.0.0 serves one server, so there is no way to mount tasks
+  without also mounting orders. On a deferring client that costs almost nothing; on one that does
+  not defer, it costs the full `tools/list`.
 - **The token is in the URL path.** That's what the endpoint accepts today, so it lands in access
   logs. An `Authorization: Bearer` header is a small endpoint change and would let this plugin
   use `headers` instead of `url`.

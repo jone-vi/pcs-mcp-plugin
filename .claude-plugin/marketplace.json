@@ -9,7 +9,7 @@
     {
       "name": "telaris-pcs",
       "source": "./plugins/telaris-pcs",
-      "description": "Telaris PCS MCP servers, one per domain: tasks, tags, orders, customers, products, reports and the Telaris documentation. Ships skills for the report engine and the search query engine."
+      "description": "One MCP server for Telaris PCS: tasks, tags, orders, customers, products, custom reports and the Telaris documentation. Ships skills for the report engine, the search query engine and the template languages."
     },
     {
       "name": "telaris-pcs-admin",

@@ -25,16 +25,19 @@ that is a report — see the **custom-reports** skill. A good rule: one-off ques
 Every `*_search` tool is the same query engine over a different entity, so what
 you learn on one applies to all of them:
 
-| tool | server | returns |
-|---|---|---|
-| `task_search` | `telaris-task` | tasks |
-| `task_movements` | `telaris-task` | task movements between boards/lists |
-| `kanban_search` | `telaris-task` | kanban boards (needs the TASKBRD licence) |
-| `tag_search` | `telaris-tag` | tags |
-| `tagtype_search` | `telaris-tag` | tag types |
-| `order_search` | `telaris-order` | sales orders |
-| `customer_search` | `telaris-customer` | customers |
-| `product_search` | `telaris-product` | products |
+| tool | returns |
+|---|---|
+| `task_search` | tasks |
+| `task_movements` | task movements between boards/lists |
+| `kanban_search` | kanban boards (needs the TASKBRD licence) |
+| `tag_search` | tags |
+| `tagtype_search` | tag types |
+| `order_search` | sales orders |
+| `customer_search` | customers |
+| `product_search` | products |
+
+All of them are on the one `telaris-pcs` server. (Through plugin 2.x they were split
+across `telaris-task`, `telaris-tag` and four more; the tool names never changed.)
 
 `*_search` returns compact rows. Use the matching `*_read` for one record in
 full — comments, checklist points, order rows, contacts. If you have an id and do
