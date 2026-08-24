@@ -16,15 +16,24 @@ is enabled, and the `admin` server rejects non-sysadmins. Bundling it with `tela
 leave most users with one permanently failing server in `/plugin` → Errors — and it would give
 every sysadmin the instance-upgrade tool without their ever asking for it.
 
-> **Requires the MCP2 endpoint.** Version 2.x and 3.x point at `/mcp2/action/…`. On an instance
-> that has not deployed it yet, install `v1.0.0` — the last version that talks to `/mcp/action/…`
-> — or wait for the deployment. `whoami` failing right after install is the symptom.
+> **Requires a recent PCS.** `3.1.0` points at `/mcp/action/…`, which is the MCP endpoint as of
+> the server-side revision `application/mcp/revisions/007-retire-mcp1.md`. Versions 2.x and
+> 3.0.0 point at `/mcp2/action/…`, which the same change kept alive as a transitional alias for
+> one release. `whoami` failing right after install is the symptom of an instance that is behind;
+> the fix is to update the instance, not the plugin.
+
+## What changed
+
+**3.1.0 moves the endpoint from `/mcp2/action` to `/mcp/action`.** Nothing else: same server,
+same tools, same names, same behaviour. The old path was numbered to sit alongside the previous
+generation of the endpoint; that generation is retired, so the number went with it. `/mcp2/action`
+still answers for one more release, so a 3.0.0 install keeps working until you update.
 
 ## One server, not seven
 
-**3.0.0 is one server where 2.x was seven.** If you are upgrading, that is the whole change: the
-tools, their names and their behaviour are identical. `/mcp` will show `telaris-pcs` where it
-showed `telaris-task`, `telaris-tag` and five more.
+**3.0.0 was one server where 2.x was seven.** If you are upgrading from 2.x, that is the change
+that matters: the tools, their names and their behaviour are identical. `/mcp` will show
+`telaris-pcs` where it showed `telaris-task`, `telaris-tag` and five more.
 
 The seven existed to save context. MCP1 offered two coarse toolsets, and `erp` alone cost about
 15.7k tokens of tool schemas on **every** request, whether or not the conversation was about
@@ -50,8 +59,10 @@ and one sign-in when OAuth arrives instead of seven. What you give up: you can n
 everything-you-may-use endpoint that 2.x left reachable by hand. Those URLs now answer 400.
 
 If your client does *not* defer tool definitions, it pays the full ~68 kB of `tools/list` on every
-request with nothing narrower to fall back to. Claude Code defers; Claude Desktop and claude.ai
-are unmeasured.
+request with nothing narrower to fall back to. **Claude Code and Claude Desktop both defer**, at
+the same 2 231 bytes — measured 2026-08-24, which is what makes one server the right answer for
+both. claude.ai is still unmeasured, and so is `mcp-remote`, which sits in front of Desktop when
+you install through the script route below.
 
 ## Install
 
@@ -119,15 +130,28 @@ uploader rejects a mismatch — and reports each description's length against th
 200-character limit, which every skill here exceeds; if an upload is ever refused for that
 reason, the descriptions are where to look first.
 
-Pair them with the MCP server as a **custom connector** — Settings → Connectors → Add custom
-connector — using the same URL the plugin uses:
+Pair them with the MCP server. Claude Desktop has two routes, and the first one is not always
+available:
+
+**Custom connector** — Settings → Connectors → Add custom connector — using the same URL the
+plugin uses:
 
 ```
-https://<host>/mcp2/action/<auth-key>/pcs
+https://<host>/mcp/action/<auth-key>/pcs
 ```
 
 Because the auth key is a path segment, no OAuth configuration is needed. Treat those URLs as
 credentials.
+
+**Or the installer**, if *"Add custom connector"* is not offered — a managed or Team/Enterprise
+account can withhold it, and there is no user-side workaround. The `/mcp` page on your instance
+hands out a one-liner that writes `claude_desktop_config.json` and bridges through `mcp-remote`:
+
+```shell
+curl -fsSL https://<host>/mcp/install-telaris-mcp.sh | bash -s -- <host> <auth-key> pcs
+```
+
+It needs Node.js 18+, which it installs, and nothing from an administrator.
 
 ## How the token reaches the server
 
@@ -139,7 +163,7 @@ endpoint URL:
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp2/action/${user_config.token}/pcs"
+      "url": "https://${user_config.host}/mcp/action/${user_config.token}/pcs"
     }
   }
 }
@@ -170,13 +194,13 @@ MCP2 requires a session, so a raw `curl` takes two calls — `initialize` first,
 `Mcp-Session-Id` it returns:
 
 ```shell
-curl -sD- -o/dev/null -X POST "https://$HOST/mcp2/action/$TOKEN/pcs" \
+curl -sD- -o/dev/null -X POST "https://$HOST/mcp/action/$TOKEN/pcs" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
         "protocolVersion":"2025-03-26","capabilities":{},
         "clientInfo":{"name":"curl","version":"1"}}}' | grep -i mcp-session-id
 
-curl -s -X POST "https://$HOST/mcp2/action/$TOKEN/pcs" \
+curl -s -X POST "https://$HOST/mcp/action/$TOKEN/pcs" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -H "Mcp-Session-Id: $SESSION" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
@@ -192,12 +216,18 @@ reason.
 - **One instance per install.** A plugin can only be installed once, so `host` is a single value.
   Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
-- **No per-domain granularity.** 3.0.0 serves one server, so there is no way to mount tasks
+- **No org-wide deployment.** Because the credential is a path segment, every user needs a
+  different URL — so an administrator cannot add this as one connector for a whole organisation,
+  however permissive their policy. OAuth is what fixes that, not a setting.
+- **No per-domain granularity.** 3.x serves one server, so there is no way to mount tasks
   without also mounting orders. On a deferring client that costs almost nothing; on one that does
   not defer, it costs the full `tools/list`.
 - **The token is in the URL path.** That's what the endpoint accepts today, so it lands in access
   logs. An `Authorization: Bearer` header is a small endpoint change and would let this plugin
   use `headers` instead of `url`.
+- **A password change invalidates the auth key.** It is derived from the user's password, so
+  changing the password silently breaks every install of it. Symptom: HTTP 401. Fix: copy the new
+  key from `/mcp`.
 - **Codex** can't handshake with this endpoint natively and still needs the `mcp-remote` bridge.
 
 ## Updating
@@ -213,5 +243,7 @@ claude plugin validate ./plugins/telaris-pcs --strict
 ./bin/build-skills.sh
 ```
 
-The server side lives in the PCS repository under `application/mcp2/` — `SPEC.md` for the design,
-`STEPS.md` for the plan, `tests/` for the verification harnesses.
+The server side lives in the PCS repository under `application/mcp/` — `SPEC.md` for the server
+design, `TOOLS.md` for the tool layer, `STEPS.md` for the plan, `revisions/` for the decisions and
+`tests/` for the verification harnesses. It was split across `application/mcp/` and
+`application/mcp2/` until 2026-08-24 folded the two together.

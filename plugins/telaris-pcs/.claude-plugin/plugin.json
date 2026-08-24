@@ -2,7 +2,7 @@
   "name": "telaris-pcs",
   "displayName": "Telaris PCS",
   "description": "One MCP server for Telaris PCS: tasks, tags, orders, customers, products, custom reports and the Telaris documentation. Ships skills for the report engine, the search query engine and the template languages.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
