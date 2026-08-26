@@ -16,18 +16,28 @@ is enabled, and the `admin` server rejects non-sysadmins. Bundling it with `tela
 leave most users with one permanently failing server in `/plugin` → Errors — and it would give
 every sysadmin the instance-upgrade tool without their ever asking for it.
 
-> **Requires a recent PCS.** `3.1.0` points at `/mcp/action/…`, which is the MCP endpoint as of
-> the server-side revision `application/mcp/revisions/007-retire-mcp1.md`. Versions 2.x and
-> 3.0.0 point at `/mcp2/action/…`, which the same change kept alive as a transitional alias for
-> one release. `whoami` failing right after install is the symptom of an instance that is behind;
-> the fix is to update the instance, not the plugin.
+> **Requires a recent PCS.** `3.2.0` sends the auth key as an `Authorization: Bearer` header,
+> which the endpoint accepts as of the server-side revision
+> `application/mcp/revisions/100-bearer-then-oauth.md` phase 3. `3.1.0` and earlier put it in the
+> URL path, which still works and is not going away. `whoami` failing right after install is the
+> symptom of an instance that is behind; the fix is to update the instance, not the plugin.
 
 ## What changed
 
-**3.1.0 moves the endpoint from `/mcp2/action` to `/mcp/action`.** Nothing else: same server,
-same tools, same names, same behaviour. The old path was numbered to sit alongside the previous
-generation of the endpoint; that generation is retired, so the number went with it. `/mcp2/action`
-still answers for one more release, so a 3.0.0 install keeps working until you update.
+**3.2.0 moves the auth key out of the URL and into an `Authorization: Bearer` header.** Same
+server, same tools, same names, same behaviour — the credential is identical, and only where it
+is written changed. What it buys is that the key stops appearing in the instance's access logs,
+which matters more than it sounds: the key is derived from your password and lives as long as
+`login.expiredays` (60 days by default), so a logged URL is a two-month replayable credential for
+your account, not a short-lived API key.
+
+The endpoint still accepts the path segment and has no plan to stop, so an existing install keeps
+working until you update. **Claude Desktop is unaffected either way** — it reads no Claude Code
+plugin, and its custom-connector URL still carries the key; see
+[Claude Desktop and claude.ai](#claude-desktop-and-claudeai) below.
+
+**3.1.0 moved the endpoint from `/mcp2/action` to `/mcp/action`.** `/mcp2/action` still answers
+for one more release, so a 3.0.0 install keeps working until you update.
 
 ## One server, not seven
 
@@ -133,15 +143,21 @@ reason, the descriptions are where to look first.
 Pair them with the MCP server. Claude Desktop has two routes, and the first one is not always
 available:
 
-**Custom connector** — Settings → Connectors → Add custom connector — using the same URL the
-plugin uses:
+**Custom connector** — Settings → Connectors → Add custom connector:
 
 ```
 https://<host>/mcp/action/<auth-key>/pcs
 ```
 
-Because the auth key is a path segment, no OAuth configuration is needed. Treat those URLs as
-credentials.
+**This is no longer the URL the plugin uses, and that is deliberate.** A custom connector is a
+URL and nothing else — there is nowhere to put a header — so Desktop authenticates by path
+segment where Claude Code now authenticates by header. Both reach the same endpoint and the same
+tools; the endpoint takes either. Because the auth key is a path segment, no OAuth configuration
+is needed. Treat those URLs as credentials.
+
+The path segment stays supported precisely because of this: it has no removal date while Desktop
+has no other way in. What would give it one is OAuth — the second half of the same server-side
+revision — and it is not built yet.
 
 **Or the installer**, if *"Add custom connector"* is not offered — a managed or Team/Enterprise
 account can withhold it, and there is no user-side workaround. The `/mcp` page on your instance
@@ -155,19 +171,26 @@ It needs Node.js 18+, which it installs, and nothing from an administrator.
 
 ## How the token reaches the server
 
-`plugin.json` declares the two values under `userConfig`; `.mcp.json` interpolates them into each
-endpoint URL:
+`plugin.json` declares the two values under `userConfig`; `.mcp.json` interpolates the host into
+the endpoint URL and the token into an `Authorization` header:
 
 ```json
 {
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/${user_config.token}/pcs"
+      "url": "https://${user_config.host}/mcp/action/pcs",
+      "headers": {
+        "Authorization": "Bearer ${user_config.token}"
+      }
     }
   }
 }
 ```
+
+Note the URL: with the key in the header there is no token segment, so `/mcp/action/pcs` names
+the server directly. The endpoint reads the segments differently depending on whether a header
+arrived, which is what lets both forms work at once. When both are present the header wins.
 
 Nothing secret is committed to this repository. Because `token` is marked `"sensitive": true`,
 Claude Code stores it in the macOS Keychain (or `~/.claude/.credentials.json` elsewhere), not in
@@ -194,37 +217,53 @@ MCP2 requires a session, so a raw `curl` takes two calls — `initialize` first,
 `Mcp-Session-Id` it returns:
 
 ```shell
-curl -sD- -o/dev/null -X POST "https://$HOST/mcp/action/$TOKEN/pcs" \
+curl -sD- -o/dev/null -X POST "https://$HOST/mcp/action/pcs" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
         "protocolVersion":"2025-03-26","capabilities":{},
         "clientInfo":{"name":"curl","version":"1"}}}' | grep -i mcp-session-id
 
-curl -s -X POST "https://$HOST/mcp/action/$TOKEN/pcs" \
+curl -s -X POST "https://$HOST/mcp/action/pcs" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -H "Mcp-Session-Id: $SESSION" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
+
+The path form still works and is what an older instance needs — drop the `Authorization` line and
+put the key back in the URL as `/mcp/action/$TOKEN/pcs`.
 
 Every failure comes back as JSON with a real status code — 401 for a bad token, 403 for a login
 or server you may not use, 400 for a server that does not exist. MCP1 answered those with HTTP
 200 and an HTML body, which clients reported as "Unexpected content type" while discarding the
 reason.
 
+A 401 also carries a `WWW-Authenticate` challenge naming which of the two it was:
+
+```
+Bearer realm="Telaris MCP", error="invalid_token", error_description="Invalid or missing access token"
+Bearer realm="Telaris MCP", error="invalid_request", error_description="Malformed Authorization header"
+```
+
+`invalid_request` means the header was sent and could not be read — a missing `Bearer` prefix is
+the usual cause. `invalid_token` means it was read and rejected.
+
 ## Known limitations
 
 - **One instance per install.** A plugin can only be installed once, so `host` is a single value.
   Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
-- **No org-wide deployment.** Because the credential is a path segment, every user needs a
-  different URL — so an administrator cannot add this as one connector for a whole organisation,
-  however permissive their policy. OAuth is what fixes that, not a setting.
+- **No org-wide deployment.** Every user needs their own credential, whether it travels in a
+  header or a path segment — so an administrator cannot add this as one connector for a whole
+  organisation, however permissive their policy. OAuth is what fixes that, not a setting.
 - **No per-domain granularity.** 3.x serves one server, so there is no way to mount tasks
   without also mounting orders. On a deferring client that costs almost nothing; on one that does
   not defer, it costs the full `tools/list`.
-- **The token is in the URL path.** That's what the endpoint accepts today, so it lands in access
-  logs. An `Authorization: Bearer` header is a small endpoint change and would let this plugin
-  use `headers` instead of `url`.
+- **The token is still in the URL for Claude Desktop.** 3.2.0 moved Claude Code onto a header, so
+  its key no longer lands in access logs — but a custom connector is a URL with nowhere to put a
+  header, and the installer bridges through `mcp-remote`, so Desktop's key still does. OAuth is
+  what fixes that.
 - **A password change invalidates the auth key.** It is derived from the user's password, so
   changing the password silently breaks every install of it. Symptom: HTTP 401. Fix: copy the new
   key from `/mcp`.
