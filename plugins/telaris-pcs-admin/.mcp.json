@@ -2,7 +2,7 @@
   "mcpServers": {
     "telaris-admin": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/admin"
+      "url": "https://laura.telaris.no/mcp/action/admin"
     }
   }
 }

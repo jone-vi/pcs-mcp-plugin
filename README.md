@@ -25,6 +25,24 @@ every sysadmin the instance-upgrade tool without their ever asking for it.
 
 ## What changed
 
+**4.1.0 writes the hostname into the plugin and drops the `host` setting.** The URL in
+`.mcp.json` names `laura.telaris.no` outright.
+
+The setting existed so that one plugin could serve any instance, and in Claude Code it did:
+`${user_config.host}` is interpolated into an `http` server's `url` before the connection is
+made. **Claude Desktop does not interpolate it.** Desktop's plugin loader reads `url`, `headers`
+and `oauth` from `.mcp.json` and nothing else — there is no `userConfig` layer on that path and
+nothing to prompt with — so it took the placeholder literally, offered
+`https://${user_config.host}/mcp/action/erp` as a custom connector, and failed on the first
+request with *"Couldn't register with telaris-pcs's sign-in service"*. That message names the
+step it reached, not the fault: the hostname does not resolve, so discovery, registration and
+everything after it fail alike.
+
+So the setting was never portable configuration — it was configuration that worked in one of the
+two clients that read this file, and silently produced a broken connector in the other. A literal
+URL works in both. What it costs is that this repository now names one instance: pointing it
+somewhere else is an edit and a version bump rather than a prompt.
+
 **4.0.0 drops the auth key. Claude signs in with OAuth instead.** There is one setting left —
 the hostname — and the first connection opens a browser tab on your instance, where you log in
 as yourself and choose whether this connection may write. Claude keeps its own token from there,
@@ -89,19 +107,11 @@ now that the script route it bridged for is gone.
 /plugin install telaris-pcs@telaris
 ```
 
-Claude Code prompts for one value on install:
+There is nothing to fill in. The instance is `laura.telaris.no`, written into the plugin.
 
-- **PCS hostname** — e.g. `laura.telaris.no` (default) or `pcs85.telaris.no`
-
-The first time Claude connects it opens a browser tab on that instance. Log in, decide whether
-this connection may make changes, and approve. If the sign-in page redirects you to the dashboard
+The first time Claude connects it opens a browser tab there. Log in, decide whether this
+connection may make changes, and approve. If the sign-in page redirects you to the dashboard
 instead, you don't have MCP access yet — see [Access](#access) below.
-
-Non-interactively, for scripted setup:
-
-```shell
-claude plugin install telaris-pcs@telaris --config host=pcs85.telaris.no
-```
 
 If the install summary says `Run /reload-plugins to activate.`, run it. The browser flow still
 happens on the first connection — it is a sign-in, not a setting.
@@ -146,11 +156,16 @@ uploader rejects a mismatch — and reports each description's length against th
 200-character limit, which every skill here exceeds; if an upload is ever refused for that
 reason, the descriptions are where to look first.
 
-Pair them with the MCP server. Claude Desktop reads no plugin, so it takes the URL directly —
-Settings → Connectors → Add custom connector:
+Pair them with the MCP server. Desktop does read this repository's plugins now, and from `4.1.0`
+the connector it offers works unedited: installing `telaris-pcs` prefills *Add custom connector*
+with the endpoint URL and you press Add. On `4.0.0` that same dialog was prefilled with an
+uninterpolated `${user_config.host}` and could not connect — if you hit that, update the
+marketplace and add the connector again.
+
+By hand is the same thing — Settings → Connectors → Add custom connector:
 
 ```
-https://<host>/mcp/action/erp
+https://laura.telaris.no/mcp/action/erp
 ```
 
 No key in it. Desktop runs the same OAuth flow the plugin does, in the same browser, against the
@@ -164,28 +179,24 @@ item has no Desktop route.
 
 ## How the plugin reaches the server
 
-`plugin.json` declares the one value under `userConfig`; `.mcp.json` interpolates the host into
-the endpoint URL, and that is the whole configuration:
+`.mcp.json` names the endpoint outright, and that is the whole configuration:
 
 ```json
 {
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/erp"
+      "url": "https://laura.telaris.no/mcp/action/erp"
     }
   }
 }
 ```
 
-There is no `headers` block. Claude Code sees a `401` with a `WWW-Authenticate` challenge on the
+There is no `headers` block and, since `4.1.0`, no `userConfig`. Claude Code sees a `401` with a `WWW-Authenticate` challenge on the
 first request, follows it to the instance's protected-resource metadata, registers itself with
 the authorization server, and runs the browser flow. The token it gets back is its own; it is
 stored the way Claude Code stores OAuth credentials for any MCP server, and neither this
 repository nor `~/.claude/settings.json` ever holds a secret.
-
-`host` is read only from user settings, the `--settings` flag, and managed settings — never from
-a project's `.claude/settings.json`. A cloned repo cannot point you at a different instance.
 
 ## Access
 
@@ -243,8 +254,9 @@ the usual cause. `invalid_token` means it was read and rejected.
 
 ## Known limitations
 
-- **One instance per install.** A plugin can only be installed once, so `host` is a single value.
-  Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
+- **One instance, named in the file.** The endpoint URL is literal since `4.1.0`, so this
+  marketplace points at `laura.telaris.no` and nowhere else; moving it is an edit to `.mcp.json`
+  and a version bump. Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
 - **No org-wide deployment.** Every user signs in as themselves, so an administrator still cannot
   add this once for a whole organisation. OAuth removed the shared *secret*, not the per-user

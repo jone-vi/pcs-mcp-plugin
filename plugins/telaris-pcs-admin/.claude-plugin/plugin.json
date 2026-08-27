@@ -2,7 +2,7 @@
   "name": "telaris-pcs-admin",
   "displayName": "Telaris PCS Admin",
   "description": "Telaris PCS system administration MCP tools. Requires system-administrator access.",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
@@ -14,14 +14,5 @@
     "pcs",
     "mcp",
     "sysadmin"
-  ],
-  "userConfig": {
-    "host": {
-      "type": "string",
-      "title": "PCS hostname",
-      "description": "Hostname of your Telaris PCS instance, without https:// — for example laura.telaris.no. Claude signs in through your browser the first time it connects; there is no key to paste.",
-      "required": true,
-      "default": "laura.telaris.no"
-    }
-  }
+  ]
 }
