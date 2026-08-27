@@ -1,14 +1,15 @@
 # Telaris MCP plugins
 
 Connect Claude to a Telaris PCS instance over MCP. Replaces the `curl | bash` installers
-previously served from `https://<host>/mcp/`.
+previously served from `https://<host>/mcp/`. Claude signs in through your browser — there is
+no key to copy and nothing to paste.
 
 This repository is a **plugin marketplace** for Claude Code containing two plugins, and the
 **skills** in it double as uploadable skills for Claude Desktop and claude.ai.
 
 | Plugin | MCP server | Tools | Who it's for |
 |---|---|---|---|
-| `telaris-pcs` | `pcs` | tasks, kanban, tags, orders, customers, products, custom reports, the Telaris docs | Everyone with MCP access |
+| `telaris-pcs` | `erp` | tasks, kanban, tags, orders, customers, products, custom reports, the Telaris docs | Everyone with MCP access |
 | `telaris-pcs-admin` | `admin` | `genesis_update` | System administrators only |
 
 They are separate plugins on purpose: every MCP server a plugin declares starts when the plugin
@@ -16,28 +17,35 @@ is enabled, and the `admin` server rejects non-sysadmins. Bundling it with `tela
 leave most users with one permanently failing server in `/plugin` → Errors — and it would give
 every sysadmin the instance-upgrade tool without their ever asking for it.
 
-> **Requires a recent PCS.** `3.2.0` sends the auth key as an `Authorization: Bearer` header,
-> which the endpoint accepts as of the server-side revision
-> `application/mcp/revisions/100-bearer-then-oauth.md` phase 3. `3.1.0` and earlier put it in the
-> URL path, which still works and is not going away. `whoami` failing right after install is the
-> symptom of an instance that is behind; the fix is to update the instance, not the plugin.
+> **Requires a recent PCS.** `4.0.0` carries no credential at all and expects the instance to
+> run the OAuth authorization server from the server-side revisions
+> `application/mcp/revisions/100-bearer-then-oauth.md` and `010-mcp-consent.md`. Against an
+> instance that predates them the install fails at the first connection with a 401 and no way to
+> sign in; the fix is to update the instance, or to stay on `3.2.0` until you can.
 
 ## What changed
 
-**3.2.0 moves the auth key out of the URL and into an `Authorization: Bearer` header.** Same
-server, same tools, same names, same behaviour — the credential is identical, and only where it
-is written changed. What it buys is that the key stops appearing in the instance's access logs,
-which matters more than it sounds: the key is derived from your password and lives as long as
-`login.expiredays` (60 days by default), so a logged URL is a two-month replayable credential for
-your account, not a short-lived API key.
+**4.0.0 drops the auth key. Claude signs in with OAuth instead.** There is one setting left —
+the hostname — and the first connection opens a browser tab on your instance, where you log in
+as yourself and choose whether this connection may write. Claude keeps its own token from there,
+scoped to that one decision and revocable from `/mcp` without touching your password.
 
-The endpoint still accepts the path segment and has no plan to stop, so an existing install keeps
-working until you update. **Claude Desktop is unaffected either way** — it reads no Claude Code
-plugin, and its custom-connector URL still carries the key; see
-[Claude Desktop and claude.ai](#claude-desktop-and-claudeai) below.
+That is a different credential, not a better-carried one. The auth key was your login: derived
+from your password, valid for as long as `login.expiredays` (60 days by default), good for
+everything you can do, and impossible to revoke without changing the password. An OAuth token is
+issued to one client, records whether writes were granted, and dies when you say so.
 
-**3.1.0 moved the endpoint from `/mcp2/action` to `/mcp/action`.** `/mcp2/action` still answers
-for one more release, so a 3.0.0 install keeps working until you update.
+**This is a breaking upgrade.** The `token` setting is gone, so `/plugin marketplace update`
+followed by a reload will send you through the browser flow once. Nothing on the server side
+changed for the old key — it still works, and a `3.2.0` install that you do not update keeps
+running.
+
+**The server is named `erp` now, not `pcs`.** `/mcp/action/pcs` is an alias and keeps answering,
+so this is invisible unless you wired a URL by hand. The name says which of the instance's two
+servers this is; the old one named the instance, which was true of `admin` too.
+
+**3.2.0 moved the auth key out of the URL and into an `Authorization: Bearer` header**, and
+**3.1.0 moved the endpoint from `/mcp2/action` to `/mcp/action`.** Both still work.
 
 ## One server, not seven
 
@@ -71,8 +79,8 @@ everything-you-may-use endpoint that 2.x left reachable by hand. Those URLs now 
 If your client does *not* defer tool definitions, it pays the full ~68 kB of `tools/list` on every
 request with nothing narrower to fall back to. **Claude Code and Claude Desktop both defer**, at
 the same 2 231 bytes — measured 2026-08-24, which is what makes one server the right answer for
-both. claude.ai is still unmeasured, and so is `mcp-remote`, which sits in front of Desktop when
-you install through the script route below.
+both. claude.ai is still unmeasured, and so is `mcp-remote`, which no longer sits in front of Desktop
+now that the script route it bridged for is gone.
 
 ## Install
 
@@ -81,24 +89,22 @@ you install through the script route below.
 /plugin install telaris-pcs@telaris
 ```
 
-Claude Code prompts for two values on install:
+Claude Code prompts for one value on install:
 
-- **PCS hostname** — e.g. `pcs.telaris.no` (default) or `pcs85.telaris.no`
-- **MCP auth key** — your personal key, stored in the macOS Keychain rather than `settings.json`
+- **PCS hostname** — e.g. `laura.telaris.no` (default) or `pcs85.telaris.no`
 
-Get the auth key by logging in to your PCS instance and opening **`/mcp`**. It's the long value
-in the install command shown there. If `/mcp` redirects you to the dashboard, you don't have MCP
-access yet — see [Access](#access) below.
+The first time Claude connects it opens a browser tab on that instance. Log in, decide whether
+this connection may make changes, and approve. If the sign-in page redirects you to the dashboard
+instead, you don't have MCP access yet — see [Access](#access) below.
 
 Non-interactively, for scripted setup:
 
 ```shell
-claude plugin install telaris-pcs@telaris \
-  --config host=pcs85.telaris.no \
-  --config token=<auth-key>
+claude plugin install telaris-pcs@telaris --config host=pcs85.telaris.no
 ```
 
-If the install summary says `Run /reload-plugins to activate.`, run it.
+If the install summary says `Run /reload-plugins to activate.`, run it. The browser flow still
+happens on the first connection — it is a sign-in, not a setting.
 
 ## Skills
 
@@ -140,64 +146,46 @@ uploader rejects a mismatch — and reports each description's length against th
 200-character limit, which every skill here exceeds; if an upload is ever refused for that
 reason, the descriptions are where to look first.
 
-Pair them with the MCP server. Claude Desktop has two routes, and the first one is not always
-available:
-
-**Custom connector** — Settings → Connectors → Add custom connector:
+Pair them with the MCP server. Claude Desktop reads no plugin, so it takes the URL directly —
+Settings → Connectors → Add custom connector:
 
 ```
-https://<host>/mcp/action/<auth-key>/pcs
+https://<host>/mcp/action/erp
 ```
 
-**This is no longer the URL the plugin uses, and that is deliberate.** A custom connector is a
-URL and nothing else — there is nowhere to put a header — so Desktop authenticates by path
-segment where Claude Code now authenticates by header. Both reach the same endpoint and the same
-tools; the endpoint takes either. Because the auth key is a path segment, no OAuth configuration
-is needed. Treat those URLs as credentials.
+No key in it. Desktop runs the same OAuth flow the plugin does, in the same browser, against the
+same consent screen.
 
-The path segment stays supported precisely because of this: it has no removal date while Desktop
-has no other way in. What would give it one is OAuth — the second half of the same server-side
-revision — and it is not built yet.
+*"Add custom connector"* is a permission a managed or Team/Enterprise account can withhold, and
+there is no user-side workaround. There used to be one — a `curl | bash` one-liner from the
+instance's `/mcp` page that wrote `claude_desktop_config.json` and bridged through `mcp-remote` —
+and it is gone, because what it wrote was your auth key inside a URL. An account without the menu
+item has no Desktop route.
 
-**Or the installer**, if *"Add custom connector"* is not offered — a managed or Team/Enterprise
-account can withhold it, and there is no user-side workaround. The `/mcp` page on your instance
-hands out a one-liner that writes `claude_desktop_config.json` and bridges through `mcp-remote`:
+## How the plugin reaches the server
 
-```shell
-curl -fsSL https://<host>/mcp/install-telaris-mcp.sh | bash -s -- <host> <auth-key> pcs
-```
-
-It needs Node.js 18+, which it installs, and nothing from an administrator.
-
-## How the token reaches the server
-
-`plugin.json` declares the two values under `userConfig`; `.mcp.json` interpolates the host into
-the endpoint URL and the token into an `Authorization` header:
+`plugin.json` declares the one value under `userConfig`; `.mcp.json` interpolates the host into
+the endpoint URL, and that is the whole configuration:
 
 ```json
 {
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/pcs",
-      "headers": {
-        "Authorization": "Bearer ${user_config.token}"
-      }
+      "url": "https://${user_config.host}/mcp/action/erp"
     }
   }
 }
 ```
 
-Note the URL: with the key in the header there is no token segment, so `/mcp/action/pcs` names
-the server directly. The endpoint reads the segments differently depending on whether a header
-arrived, which is what lets both forms work at once. When both are present the header wins.
+There is no `headers` block. Claude Code sees a `401` with a `WWW-Authenticate` challenge on the
+first request, follows it to the instance's protected-resource metadata, registers itself with
+the authorization server, and runs the browser flow. The token it gets back is its own; it is
+stored the way Claude Code stores OAuth credentials for any MCP server, and neither this
+repository nor `~/.claude/settings.json` ever holds a secret.
 
-Nothing secret is committed to this repository. Because `token` is marked `"sensitive": true`,
-Claude Code stores it in the macOS Keychain (or `~/.claude/.credentials.json` elsewhere), not in
-`~/.claude/settings.json`.
-
-Values are only read from user settings, the `--settings` flag, and managed settings — never from
-a project's `.claude/settings.json`. A cloned repo cannot inject a different host or token.
+`host` is read only from user settings, the `--settings` flag, and managed settings — never from
+a project's `.claude/settings.json`. A cloned repo cannot point you at a different instance.
 
 ## Access
 
@@ -214,17 +202,20 @@ called.
 ## Calling the endpoint by hand
 
 MCP2 requires a session, so a raw `curl` takes two calls — `initialize` first, then reuse the
-`Mcp-Session-Id` it returns:
+`Mcp-Session-Id` it returns. `$TOKEN` here is your MCP auth key: the plugin stopped using it in
+`4.0.0`, but the endpoint still accepts it in a `Bearer` header, which is what makes calling by
+hand practical at all — an OAuth access token is not something you can conveniently produce in a
+shell.
 
 ```shell
-curl -sD- -o/dev/null -X POST "https://$HOST/mcp/action/pcs" \
+curl -sD- -o/dev/null -X POST "https://$HOST/mcp/action/erp" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
         "protocolVersion":"2025-03-26","capabilities":{},
         "clientInfo":{"name":"curl","version":"1"}}}' | grep -i mcp-session-id
 
-curl -s -X POST "https://$HOST/mcp/action/pcs" \
+curl -s -X POST "https://$HOST/mcp/action/erp" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -H "Mcp-Session-Id: $SESSION" \
@@ -232,7 +223,8 @@ curl -s -X POST "https://$HOST/mcp/action/pcs" \
 ```
 
 The path form still works and is what an older instance needs — drop the `Authorization` line and
-put the key back in the URL as `/mcp/action/$TOKEN/pcs`.
+put the key back in the URL as `/mcp/action/$TOKEN/erp`. `pcs` works in place of `erp` everywhere
+above; it is the old name of the same server.
 
 Every failure comes back as JSON with a real status code — 401 for a bad token, 403 for a login
 or server you may not use, 400 for a server that does not exist. MCP1 answered those with HTTP
@@ -254,19 +246,19 @@ the usual cause. `invalid_token` means it was read and rejected.
 - **One instance per install.** A plugin can only be installed once, so `host` is a single value.
   Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
-- **No org-wide deployment.** Every user needs their own credential, whether it travels in a
-  header or a path segment — so an administrator cannot add this as one connector for a whole
-  organisation, however permissive their policy. OAuth is what fixes that, not a setting.
+- **No org-wide deployment.** Every user signs in as themselves, so an administrator still cannot
+  add this once for a whole organisation. OAuth removed the shared *secret*, not the per-user
+  sign-in.
 - **No per-domain granularity.** 3.x serves one server, so there is no way to mount tasks
   without also mounting orders. On a deferring client that costs almost nothing; on one that does
   not defer, it costs the full `tools/list`.
-- **The token is still in the URL for Claude Desktop.** 3.2.0 moved Claude Code onto a header, so
-  its key no longer lands in access logs — but a custom connector is a URL with nowhere to put a
-  header, and the installer bridges through `mcp-remote`, so Desktop's key still does. OAuth is
-  what fixes that.
-- **A password change invalidates the auth key.** It is derived from the user's password, so
-  changing the password silently breaks every install of it. Symptom: HTTP 401. Fix: copy the new
-  key from `/mcp`.
+- **Read-only is decided once, at sign-in.** The consent screen asks whether the connection may
+  make changes, and the answer is recorded on the token. Changing your mind means revoking the
+  connection at `/mcp` and signing in again — a read-only connection's symptom is a missing write
+  tool, which does not announce its cause.
+- **A password change does not affect an OAuth connection**, which is a change from `3.2.0` and
+  worth knowing in both directions: an install that stops working after a password change is one
+  still using the auth key.
 - **Codex** can't handshake with this endpoint natively and still needs the `mcp-remote` bridge.
 
 ## Updating

@@ -2,28 +2,26 @@
   "name": "telaris-pcs-admin",
   "displayName": "Telaris PCS Admin",
   "description": "Telaris PCS system administration MCP tools. Requires system-administrator access.",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
   },
   "homepage": "https://wiki.telaris.no/index.php/Systeminnstillinger",
   "repository": "https://github.com/jone-vi/pcs-mcp-plugin",
-  "keywords": [ "telaris", "pcs", "mcp", "sysadmin" ],
+  "keywords": [
+    "telaris",
+    "pcs",
+    "mcp",
+    "sysadmin"
+  ],
   "userConfig": {
     "host": {
       "type": "string",
       "title": "PCS hostname",
-      "description": "Hostname of your Telaris PCS instance, without https:// — for example pcs.telaris.no",
+      "description": "Hostname of your Telaris PCS instance, without https:// — for example laura.telaris.no. Claude signs in through your browser the first time it connects; there is no key to paste.",
       "required": true,
-      "default": "pcs.telaris.no"
-    },
-    "token": {
-      "type": "string",
-      "title": "MCP auth key",
-      "description": "Your personal auth key from /mcp on your PCS instance. Treat it like a password.",
-      "required": true,
-      "sensitive": true
+      "default": "laura.telaris.no"
     }
   }
 }

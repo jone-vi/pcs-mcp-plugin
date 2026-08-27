@@ -2,10 +2,7 @@
   "mcpServers": {
     "telaris-admin": {
       "type": "http",
-      "url": "https://${user_config.host}/mcp/action/admin",
-      "headers": {
-        "Authorization": "Bearer ${user_config.token}"
-      }
+      "url": "https://${user_config.host}/mcp/action/admin"
     }
   }
 }

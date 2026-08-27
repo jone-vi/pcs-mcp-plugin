@@ -2,28 +2,26 @@
   "name": "telaris-pcs",
   "displayName": "Telaris PCS",
   "description": "One MCP server for Telaris PCS: tasks, tags, orders, customers, products, custom reports and the Telaris documentation. Ships skills for the report engine, the search query engine and the template languages.",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "author": {
     "name": "Telaris",
     "email": "jone@telaris.no"
   },
   "homepage": "https://wiki.telaris.no/index.php/Systeminnstillinger",
   "repository": "https://github.com/jone-vi/pcs-mcp-plugin",
-  "keywords": [ "telaris", "pcs", "erp", "mcp" ],
+  "keywords": [
+    "telaris",
+    "pcs",
+    "erp",
+    "mcp"
+  ],
   "userConfig": {
     "host": {
       "type": "string",
       "title": "PCS hostname",
-      "description": "Hostname of your Telaris PCS instance, without https:// — for example pcs.telaris.no",
+      "description": "Hostname of your Telaris PCS instance, without https:// — for example laura.telaris.no. Claude signs in through your browser the first time it connects; there is no key to paste.",
       "required": true,
-      "default": "pcs.telaris.no"
-    },
-    "token": {
-      "type": "string",
-      "title": "MCP auth key",
-      "description": "Your personal auth key. Log in to PCS, open /mcp, and copy the key from the install command shown there. Treat it like a password.",
-      "required": true,
-      "sensitive": true
+      "default": "laura.telaris.no"
     }
   }
 }
