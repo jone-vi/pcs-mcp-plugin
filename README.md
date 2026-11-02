@@ -26,7 +26,7 @@ every sysadmin the instance-upgrade tool without their ever asking for it.
 ## What changed
 
 **4.1.0 writes the hostname into the plugin and drops the `host` setting.** The URL in
-`.mcp.json` names `laura.telaris.no` outright.
+`.mcp.json` names `pcs.telaris.no` outright.
 
 The setting existed so that one plugin could serve any instance, and in Claude Code it did:
 `${user_config.host}` is interpolated into an `http` server's `url` before the connection is
@@ -107,7 +107,7 @@ now that the script route it bridged for is gone.
 /plugin install telaris-pcs@telaris
 ```
 
-There is nothing to fill in. The instance is `laura.telaris.no`, written into the plugin.
+There is nothing to fill in. The instance is `pcs.telaris.no`, written into the plugin.
 
 The first time Claude connects it opens a browser tab there. Log in, decide whether this
 connection may make changes, and approve. If the sign-in page redirects you to the dashboard
@@ -165,7 +165,7 @@ marketplace and add the connector again.
 By hand is the same thing — Settings → Connectors → Add custom connector:
 
 ```
-https://laura.telaris.no/mcp/action/erp
+https://pcs.telaris.no/mcp/action/erp
 ```
 
 No key in it. Desktop runs the same OAuth flow the plugin does, in the same browser, against the
@@ -186,7 +186,7 @@ item has no Desktop route.
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://laura.telaris.no/mcp/action/erp"
+      "url": "https://pcs.telaris.no/mcp/action/erp"
     }
   }
 }
@@ -255,7 +255,7 @@ the usual cause. `invalid_token` means it was read and rejected.
 ## Known limitations
 
 - **One instance, named in the file.** The endpoint URL is literal since `4.1.0`, so this
-  marketplace points at `laura.telaris.no` and nowhere else; moving it is an edit to `.mcp.json`
+  marketplace points at `pcs.telaris.no` and nowhere else; moving it is an edit to `.mcp.json`
   and a version bump. Users who work across several instances need the planned `mcp.telaris.no` OAuth gateway, which
   addresses each instance as its own resource URI.
 - **No org-wide deployment.** Every user signs in as themselves, so an administrator still cannot

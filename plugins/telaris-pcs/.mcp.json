@@ -2,7 +2,7 @@
   "mcpServers": {
     "telaris-pcs": {
       "type": "http",
-      "url": "https://laura.telaris.no/mcp/action/erp"
+      "url": "https://pcs.telaris.no/mcp/action/erp"
     }
   }
 }
